@@ -54,38 +54,66 @@ public class Function
     }
   }
 
+  public class MovieWithRatings
+  {
+    public Movie Movie { get; set; }
+    public List<int> Ratings { get; set; }
+  }
+
+
   private APIGatewayHttpApiV2ProxyResponse GetMovies()
   {
-    var movies = dbContext.Movies.ToList();
+    var moviesWithRatings = dbContext.Movies
+        .Select(m => new MovieWithRatings
+        {
+          Movie = m,
+          Ratings = m.UserMovieRatings.Select(umr => umr.Rating).ToList()
+        })
+        .ToList();
 
     var response = new APIGatewayHttpApiV2ProxyResponse
     {
       StatusCode = (int)HttpStatusCode.OK,
-      // json body
-      Body = System.Text.Json.JsonSerializer.Serialize(movies),
+      Body = System.Text.Json.JsonSerializer.Serialize(moviesWithRatings),
       Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
     };
     return response;
   }
+
 
   private async Task<APIGatewayHttpApiV2ProxyResponse> GetMoviesByName(string name)
   {
-    var movies = await dbContext.Movies.Where(m => m.Name.Contains(name)).ToListAsync();
+    var moviesWithRatings = await dbContext.Movies
+        .Where(m => m.Name.Contains(name))
+        .Select(m => new MovieWithRatings
+        {
+          Movie = m,
+          Ratings = m.UserMovieRatings.Select(umr => umr.Rating).ToList()
+        })
+        .ToListAsync();
 
     var response = new APIGatewayHttpApiV2ProxyResponse
     {
       StatusCode = (int)HttpStatusCode.OK,
-      Body = System.Text.Json.JsonSerializer.Serialize(movies),
+      Body = System.Text.Json.JsonSerializer.Serialize(moviesWithRatings),
       Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
     };
     return response;
   }
 
+
   private async Task<APIGatewayHttpApiV2ProxyResponse> GetMovieById(int id)
   {
-    var movie = await dbContext.Movies.FindAsync(id);
+    var movieWithRatings = await dbContext.Movies
+        .Where(m => m.Id == id)
+        .Select(m => new MovieWithRatings
+        {
+          Movie = m,
+          Ratings = m.UserMovieRatings.Select(umr => umr.Rating).ToList()
+        })
+        .FirstOrDefaultAsync();
 
-    if (movie == null)
+    if (movieWithRatings == null)
     {
       return new APIGatewayHttpApiV2ProxyResponse
       {
@@ -98,11 +126,12 @@ public class Function
     var response = new APIGatewayHttpApiV2ProxyResponse
     {
       StatusCode = (int)HttpStatusCode.OK,
-      Body = System.Text.Json.JsonSerializer.Serialize(movie),
+      Body = System.Text.Json.JsonSerializer.Serialize(movieWithRatings),
       Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
     };
     return response;
   }
+
 
   private async Task<APIGatewayHttpApiV2ProxyResponse> CreateMovie(APIGatewayHttpApiV2ProxyRequest request)
   {
