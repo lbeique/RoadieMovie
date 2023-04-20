@@ -122,17 +122,46 @@ public class Function
 
   private async Task<APIGatewayHttpApiV2ProxyResponse> UpdateMovie(APIGatewayHttpApiV2ProxyRequest request)
   {
-    var movie = System.Text.Json.JsonSerializer.Deserialize<Movie>(request.Body);
-    dbContext.Movies.Update(movie);
-    await dbContext.SaveChangesAsync();
+    var pathParameters = request.PathParameters;
 
-    var response = new APIGatewayHttpApiV2ProxyResponse
+    if (pathParameters != null && pathParameters.ContainsKey("id"))
     {
-      StatusCode = (int)HttpStatusCode.OK,
-      Body = System.Text.Json.JsonSerializer.Serialize(movie),
-      Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
-    };
-    return response;
+      var id = int.Parse(pathParameters["id"]);
+      var movieToUpdate = await dbContext.Movies.FindAsync(id);
+
+      if (movieToUpdate == null)
+      {
+        return new APIGatewayHttpApiV2ProxyResponse
+        {
+          StatusCode = (int)HttpStatusCode.NotFound,
+          Body = "Movie not found",
+          Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
+        };
+      }
+
+      var movie = System.Text.Json.JsonSerializer.Deserialize<Movie>(request.Body);
+      movie.Id = id; // Set the movie id from path parameters
+
+      dbContext.Movies.Update(movie);
+      await dbContext.SaveChangesAsync();
+
+      var response = new APIGatewayHttpApiV2ProxyResponse
+      {
+        StatusCode = (int)HttpStatusCode.OK,
+        Body = System.Text.Json.JsonSerializer.Serialize(movie),
+        Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
+      };
+      return response;
+    }
+    else
+    {
+      return new APIGatewayHttpApiV2ProxyResponse
+      {
+        StatusCode = (int)HttpStatusCode.BadRequest,
+        Body = "Invalid request",
+        Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
+      };
+    }
   }
 
   private async Task<APIGatewayHttpApiV2ProxyResponse> DeleteMovie(APIGatewayHttpApiV2ProxyRequest request)
